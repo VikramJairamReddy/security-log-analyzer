@@ -1,0 +1,7 @@
+2026-10-16 09:00:00 INFO user=vikram ip=192.168.1.10 action=login status=success
+2026-10-16 09:01:00 WARN user=admin ip=203.0.113.25 action=login status=failed
+2026-10-16 09:01:10 WARN user=admin ip=203.0.113.25 action=login status=failed
+2026-10-16 09:01:20 WARN user=admin ip=203.0.113.25 action=login status=failed
+2026-10-16 09:01:30 WARN user=root ip=203.0.113.25 action=login status=failed
+2026-10-16 09:03:00 INFO user=alex ip=192.168.1.15 action=login status=success
+2026-10-16 09:04:00 WARN user=alex ip=198.51.100.8 action=login status=failed

@@ -123,3 +123,41 @@ def filter_events(db_path, status=None, ip=None):
         }
         for row in rows
     ]
+
+
+def get_security_summary(db_path):
+    """Return security event counts from the database."""
+    db_path = Path(db_path)
+
+    with sqlite3.connect(db_path) as connection:
+        total_events = connection.execute(
+            "SELECT COUNT(*) FROM events"
+        ).fetchone()[0]
+
+        successful_logins = connection.execute(
+            "SELECT COUNT(*) FROM events WHERE status = 'success'"
+        ).fetchone()[0]
+
+        failed_logins = connection.execute(
+            "SELECT COUNT(*) FROM events WHERE status = 'failed'"
+        ).fetchone()[0]
+
+        suspicious_ips = connection.execute(
+            """
+            SELECT ip, COUNT(*) AS failed_count
+            FROM events
+            WHERE status = 'failed'
+            GROUP BY ip
+            HAVING COUNT(*) >= 3
+            ORDER BY failed_count DESC
+            """
+        ).fetchall()
+
+    return {
+        "total_events": total_events,
+        "successful_logins": successful_logins,
+        "failed_logins": failed_logins,
+        "suspicious_ips": {
+            ip: count for ip, count in suspicious_ips
+        },
+    }

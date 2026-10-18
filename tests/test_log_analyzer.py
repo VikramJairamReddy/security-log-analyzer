@@ -1,5 +1,5 @@
 from src.main import convert_log, load_events, detect_suspicious_ip, export_report
-from src.database import initialize_database,save_events, get_events, filter_events
+from src.database import initialize_database,save_events, get_events, filter_events, get_security_summary
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -405,3 +405,50 @@ def test_filter_events_by_status_and_ip(tmp_path):
     assert len(result) == 1
     assert result[0]["user"] == "vikram"
 
+
+def test_get_security_summary(tmp_path):
+    db_path = tmp_path / "security.db"
+
+    events = [
+        {
+            "timestamp": datetime(2026, 10, 17, 12, 30),
+            "level": "INFO",
+            "user": "vikram",
+            "ip": "203.0.113.25",
+            "action": "login",
+            "status": "failed",
+        },
+        {
+            "timestamp": datetime(2026, 10, 17, 12, 31),
+            "level": "INFO",
+            "user": "vikram",
+            "ip": "203.0.113.25",
+            "action": "login",
+            "status": "failed",
+        },
+        {
+            "timestamp": datetime(2026, 10, 17, 12, 32),
+            "level": "INFO",
+            "user": "vikram",
+            "ip": "203.0.113.25",
+            "action": "login",
+            "status": "failed",
+        },
+        {
+            "timestamp": datetime(2026, 10, 17, 12, 33),
+            "level": "INFO",
+            "user": "admin",
+            "ip": "198.51.100.8",
+            "action": "login",
+            "status": "success",
+        },
+    ]
+
+    save_events(events, db_path)
+
+    summary = get_security_summary(db_path)
+
+    assert summary["total_events"] == 4
+    assert summary["successful_logins"] == 1
+    assert summary["failed_logins"] == 3
+    assert summary["suspicious_ips"] == {"203.0.113.25": 3}

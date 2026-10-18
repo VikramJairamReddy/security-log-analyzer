@@ -1,7 +1,8 @@
 from pathlib import Path
 from datetime import datetime
 import json
-from .database import save_events, get_events
+import argparse
+from .database import save_events, get_events, get_security_summary
 
 def convert_log(line):
     """Convert a log line into a structured event."""
@@ -109,57 +110,97 @@ def export_report(report, file_path):
         json.dump(report, file, indent=4)
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Analyze logs for suspicious activity."
+    )
+
+    parser.add_argument(
+        "--log-file",
+        default="sample_data/auth.log",
+        help="Path to the authentication log file.",
+    )
+
+    parser.add_argument(
+        "--threshold",
+        type=int,
+        default=3,
+        help="Number of failed logins needed to trigger an alert (default: 3).",
+    )
+
+    parser.add_argument(
+        "--window",
+        type=int,
+        default=5,
+        help="Time window in minutes for detecting failed logins (default: 5).",
+    )
+
+    args = parser.parse_args()
+
+    if args.threshold < 1:
+        parser.error("--threshold must be at least 1")
+
+    if args.window < 1:
+        parser.error("--window must be at least 1")
+
     project_root = Path(__file__).resolve().parent.parent
-    log_file = project_root / "sample_data" / "auth.log"
+    log_file = Path(args.log_file)
+
+    if not log_file.is_absolute():
+        log_file = project_root / log_file
+
+    db_file = project_root / "security.db"
+    report_file = project_root / "security_report.json"
 
     try:
         events, invalid_lines = load_events(log_file)
-        db_file = project_root / "security.db"
         save_events(events, db_file)
-        events = get_events(db_file)
+        db_events = get_events(db_file)
+        summary = get_security_summary(db_file)
+
     except FileNotFoundError:
         print(f"Error: Log file not found: {log_file}")
         return
-    
-    successful_count = sum(
-        event["status"] == "success" for event in events
-    )
 
-    failed_count = sum(
-        event["status"] == "failed" for event in events
-    )
+    successful_logins = summary["successful_logins"]
+    failed_logins = summary["failed_logins"]
 
-    alerts = detect_suspicious_ip(events)
+    suspicious_ips = detect_suspicious_ip(
+        db_events,
+        threshold=args.threshold,
+        window_minutes=args.window,
+    )
 
     report = {
-        "total_events": len(events),
-        "successful_logins": successful_count,
-        "failed_logins": failed_count,
+        "total_events": summary["total_events"],
+        "successful_logins": successful_logins,
+        "failed_logins": failed_logins,
         "invalid_lines": invalid_lines,
-        "suspicious_ips": alerts,
+        "threshold": args.threshold,
+        "window_minutes": args.window,
+        "suspicious_ips": suspicious_ips,
         "generated_at": datetime.now().isoformat(timespec="seconds"),
     }
 
-    report_file = project_root / "security_report.json"
     export_report(report, report_file)
 
     print(f"\nReport saved to: {report_file}\n")
-
     print("=== Security Log Analyzer ===")
-    print(f"Total events: {len(events)}")
-    print(f"Successful logins: {successful_count}")
-    print(f"Failed logins: {failed_count}")
+    print(f"Total events: {summary['total_events']}")
+    print(f"Successful logins: {successful_logins}")
+    print(f"Failed logins: {failed_logins}")
     print(f"Invalid lines: {invalid_lines}")
+    print(f"Detection threshold: {args.threshold} failed logins")
+    print(f"Detection window: {args.window} minutes")
 
     print("\n=== Security Alerts ===")
 
-    if not alerts:
+    if not suspicious_ips:
         print("No suspicious activity detected.")
     else:
-        for ip, count in alerts.items():
+        for ip, count in suspicious_ips.items():
             print(
                 f"ALERT: {ip} has {count} failed login attempts "
-                "within five minutes."
+                f"within {args.window} minutes."
             )
 
 

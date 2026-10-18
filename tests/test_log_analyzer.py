@@ -4,6 +4,8 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 import json
+import subprocess
+import sys
 
 def test_convert_valid_log_line():
     line = ("2026-10-16 09:01:00 WARN "
@@ -452,3 +454,38 @@ def test_get_security_summary(tmp_path):
     assert summary["successful_logins"] == 1
     assert summary["failed_logins"] == 3
     assert summary["suspicious_ips"] == {"203.0.113.25": 3}
+
+
+def test_main_help_option():
+    result = subprocess.run(
+        [sys.executable, "-m", "src.main", "--help"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "--log-file" in result.stdout
+    assert "--threshold" in result.stdout
+    assert "--window" in result.stdout
+
+
+def test_main_rejects_invalid_threshold():
+    result = subprocess.run(
+        [sys.executable, "-m", "src.main", "--threshold", "0"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert "--threshold must be at least 1" in result.stderr
+
+
+def test_main_rejects_invalid_window():
+    result = subprocess.run(
+        [sys.executable, "-m", "src.main", "--window", "0"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert "--window must be at least 1" in result.stderr

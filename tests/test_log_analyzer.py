@@ -206,6 +206,7 @@ def test_export_report_to_json(tmp_path):
         "suspicious_ips": {
             "203.0.113.25": 4
         },
+        "generated_at": "2026-10-17T20:00:00",
     }
 
     export_report(report, report_file)

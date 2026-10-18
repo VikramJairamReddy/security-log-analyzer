@@ -135,6 +135,7 @@ def main():
         "failed_logins": failed_count,
         "invalid_lines": invalid_lines,
         "suspicious_ips": alerts,
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
     }
 
     report_file = project_root / "security_report.json"

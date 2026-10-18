@@ -1,4 +1,4 @@
-from src.main import convert_log, load_events, detect_suspicious_ip, export_report
+from src.main import convert_log, load_events, detect_suspicious_ip, export_report, main
 from src.database import initialize_database,save_events, get_events, filter_events, get_security_summary
 import sqlite3
 from datetime import datetime
@@ -489,3 +489,35 @@ def test_main_rejects_invalid_window():
 
     assert result.returncode != 0
     assert "--window must be at least 1" in result.stderr
+
+def test_report_uses_current_log_events(tmp_path, monkeypatch):
+
+    log_file = tmp_path / "auth.log"
+    db_file = tmp_path / "security.db"
+    report_file = tmp_path / "security_report.json"
+
+    log_file.write_text(
+        "2026-10-18 10:00:00 INFO user=alice "
+        "ip=198.51.100.10 action=login status=success\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "src.main.Path.resolve",
+        lambda self: tmp_path / "src" / "main.py",
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["main.py", "--log-file", str(log_file)],
+    )
+
+    main()
+
+    report = json.loads(report_file.read_text(encoding="utf-8"))
+
+    assert report["total_events"] == 1
+    assert report["successful_logins"] == 1
+    assert report["failed_logins"] == 0
+    assert report["suspicious_ips"] == {}

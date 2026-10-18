@@ -1,6 +1,7 @@
-from src.main import convert_log, load_events, detect_suspicious_ip
+from src.main import convert_log, load_events, detect_suspicious_ip, export_report
 from datetime import datetime
 from pathlib import Path
+import json
 
 def test_convert_valid_log_line():
     line = ("2026-10-16 09:01:00 WARN "
@@ -193,3 +194,23 @@ def test_successful_logins_do_not_count_toward_threshold():
     alerts = detect_suspicious_ip(events, threshold=3)
 
     assert alerts == {}
+
+def test_export_report_to_json(tmp_path):
+    report_file = tmp_path / "report.json"
+
+    report = {
+        "total_events": 7,
+        "successful_logins": 2,
+        "failed_logins": 5,
+        "invalid_lines": 0,
+        "suspicious_ips": {
+            "203.0.113.25": 4
+        },
+    }
+
+    export_report(report, report_file)
+
+    with report_file.open("r", encoding="utf-8") as file:
+        saved_report = json.load(file)
+
+    assert saved_report == report

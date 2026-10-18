@@ -2,6 +2,7 @@
 from asyncio import events
 from pathlib import Path
 from datetime import datetime
+import json
 
 def convert_log(line):
     """Convert a log line into a structured event."""
@@ -103,6 +104,11 @@ def detect_suspicious_ip(events, threshold=3, window_minutes=5):
 
     return alerts
 
+def export_report(report, file_path):
+    """Save a analysis report as a JSON file."""
+    with open(file_path, "w", encoding="utf-8") as file:
+        json.dump(report, file, indent=4)
+
 def main():
     project_root = Path(__file__).resolve().parent.parent
     log_file = project_root / "sample_data" / "auth.log"
@@ -122,6 +128,19 @@ def main():
     )
 
     alerts = detect_suspicious_ip(events)
+
+    report = {
+        "total_events": len(events),
+        "successful_logins": successful_count,
+        "failed_logins": failed_count,
+        "invalid_lines": invalid_lines,
+        "suspicious_ips": alerts,
+    }
+
+    report_file = project_root / "security_report.json"
+    export_report(report, report_file)
+
+    print(f"\nReport saved to: {report_file}\n")
 
     print("=== Security Log Analyzer ===")
     print(f"Total events: {len(events)}")

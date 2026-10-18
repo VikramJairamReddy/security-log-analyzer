@@ -129,3 +129,67 @@ def test_load_events_skips_invalid_lines(tmp_path):
 
     assert len(events) == 1
     assert invalid_lines == 1
+
+def test_detect_multiple_suspicious_ips():
+    events = [
+        {
+            "ip": "203.0.113.25",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T09:00:00"),
+        },
+        {
+            "ip": "203.0.113.25",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T09:01:00"),
+        },
+        {
+            "ip": "203.0.113.25",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T09:02:00"),
+        },
+        {
+            "ip": "198.51.100.8",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T10:00:00"),
+        },
+        {
+            "ip": "198.51.100.8",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T10:01:00"),
+        },
+        {
+            "ip": "198.51.100.8",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T10:02:00"),
+        },
+    ]
+
+    alerts = detect_suspicious_ip(events, threshold=3)
+
+    assert alerts == {
+        "203.0.113.25": 3,
+        "198.51.100.8": 3,
+    }
+
+def test_successful_logins_do_not_count_toward_threshold():
+    events = [
+        {
+            "ip": "203.0.113.25",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T09:00:00"),
+        },
+        {
+            "ip": "203.0.113.25",
+            "status": "success",
+            "timestamp": datetime.fromisoformat("2026-10-16T09:01:00"),
+        },
+        {
+            "ip": "203.0.113.25",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T09:02:00"),
+        },
+    ]
+
+    alerts = detect_suspicious_ip(events, threshold=3)
+
+    assert alerts == {}

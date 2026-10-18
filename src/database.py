@@ -86,3 +86,40 @@ def get_events(db_path):
         })
 
     return events
+
+
+def filter_events(db_path, status=None, ip=None):
+    """Find security events by status, IP address, or both."""
+    db_path = Path(db_path)
+
+    query = """
+        SELECT timestamp, level, username, ip, action, status
+        FROM events
+        WHERE 1 = 1
+    """
+    parameters = []
+
+    if status is not None:
+        query += " AND status = ?"
+        parameters.append(status)
+
+    if ip is not None:
+        query += " AND ip = ?"
+        parameters.append(ip)
+
+    query += " ORDER BY timestamp"
+
+    with sqlite3.connect(db_path) as connection:
+        rows = connection.execute(query, parameters).fetchall()
+
+    return [
+        {
+            "timestamp": datetime.fromisoformat(row[0]),
+            "level": row[1],
+            "user": row[2],
+            "ip": row[3],
+            "action": row[4],
+            "status": row[5],
+        }
+        for row in rows
+    ]

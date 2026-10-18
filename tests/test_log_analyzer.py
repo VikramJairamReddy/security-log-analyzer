@@ -1,5 +1,5 @@
 from src.main import convert_log, detect_suspicious_ip
-
+from datetime import datetime
 
 def test_convert_valid_log_line():
     line = ("2026-10-16 09:01:00 WARN "
@@ -24,9 +24,21 @@ def test_reject_invalid_timestamp():
 
 def test_detect_ip_at_threshold():
     events = [
-        {"ip": "203.0.113.25", "status": "failed"},
-        {"ip": "203.0.113.25", "status": "failed"},
-        {"ip": "203.0.113.25", "status": "failed"},
+        {
+            "ip": "203.0.113.25",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T09:00:00"),
+        },
+        {
+            "ip": "203.0.113.25",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T09:01:00"),
+        },
+        {
+            "ip": "203.0.113.25",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T09:02:00"),
+        },
     ]
 
     alerts = detect_suspicious_ip(events, threshold=3)
@@ -39,6 +51,53 @@ def test_successful_logins_do_not_trigger_alerts():
         {"ip": "203.0.113.25", "status": "success"},
         {"ip": "203.0.113.25", "status": "success"},
         {"ip": "203.0.113.25", "status": "success"},
+    ]
+
+    alerts = detect_suspicious_ip(events, threshold=3)
+
+    assert alerts == {}
+
+def test_detect_failures_within_five_minutes():
+    events = [
+        {
+            "ip": "203.0.113.25",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T09:00:00"),
+        },
+        {
+            "ip": "203.0.113.25",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T09:02:00"),
+        },
+        {
+            "ip": "203.0.113.25",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T09:04:00"),
+        },
+    ]
+
+    alerts = detect_suspicious_ip(events, threshold=3)
+
+    assert alerts == {"203.0.113.25": 3}
+
+
+def test_failures_spread_over_time_do_not_trigger_alert():
+    events = [
+        {
+            "ip": "203.0.113.25",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T09:00:00"),
+        },
+        {
+            "ip": "203.0.113.25",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T12:00:00"),
+        },
+        {
+            "ip": "203.0.113.25",
+            "status": "failed",
+            "timestamp": datetime.fromisoformat("2026-10-16T15:00:00"),
+        },
     ]
 
     alerts = detect_suspicious_ip(events, threshold=3)

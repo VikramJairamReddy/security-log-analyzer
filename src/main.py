@@ -63,8 +63,8 @@ def load_events(file_path):
 
     return events, invalid_lines
 
-def detect_suspicious_ip(events, threshold=3):
-    """Find IP addresses with repeated failed login attempts."""
+def detect_suspicious_ip(events, threshold=3, window_minutes=5):
+    """Find IPs with repeated failed logins within a time window."""
     failed_attempts = {}
 
     for event in events:
@@ -72,16 +72,35 @@ def detect_suspicious_ip(events, threshold=3):
             continue
 
         ip = event["ip"]
-        failed_attempts[ip] = failed_attempts.get(ip, 0) + 1
+        timestamp = event["timestamp"]
+
+        if ip not in failed_attempts:
+            failed_attempts[ip] = []
+
+        failed_attempts[ip].append(timestamp)
 
     alerts = {}
+    window_seconds = window_minutes * 60
 
-    for ip, count in failed_attempts.items():
-        if count >= threshold:
-            alerts[ip] = count
+    for ip, timestamps in failed_attempts.items():
+        timestamps.sort()
+
+        for i in range(len(timestamps)):
+            count = 0
+
+            for j in range(i, len(timestamps)):
+                elapsed = (timestamps[j] - timestamps[i]).total_seconds()
+
+                if elapsed > window_seconds:
+                    break
+
+                count += 1
+
+            if count >= threshold:
+                alerts[ip] = count
+                break
 
     return alerts
-
 
 def main():
     project_root = Path(__file__).resolve().parent.parent

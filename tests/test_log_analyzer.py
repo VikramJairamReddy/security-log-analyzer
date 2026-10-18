@@ -1,4 +1,6 @@
 from src.main import convert_log, load_events, detect_suspicious_ip, export_report
+from src.database import initialize_database, save_events, get_events
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 import json
@@ -215,3 +217,86 @@ def test_export_report_to_json(tmp_path):
         saved_report = json.load(file)
 
     assert saved_report == report
+
+def test_initialize_database_creates_events_table(tmp_path):
+    db_path = tmp_path / "security.db"
+
+    initialize_database(db_path)
+
+    with sqlite3.connect(db_path) as connection:
+        result = connection.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table' AND name = 'events'
+            """
+        ).fetchone()
+
+    assert result is not None
+    assert result[0] == "events"
+
+
+def test_save_events_to_database(tmp_path):
+    db_path = tmp_path / "security.db"
+
+    events = [
+        {
+            "timestamp": datetime(2026, 10, 17, 12, 30, 0),
+            "level": "INFO",
+            "user": "vikram",
+            "ip": "203.0.113.25",
+            "action": "login",
+            "status": "failed",
+        }
+    ]
+
+    save_events(events, db_path)
+
+    with sqlite3.connect(db_path) as connection:
+        rows = connection.execute(
+            "SELECT username, ip, status FROM events"
+        ).fetchall()
+
+    assert rows == [("vikram", "203.0.113.25", "failed")]
+
+
+def test_get_events_from_database(tmp_path):
+    db_path = tmp_path / "security.db"
+
+    original_events = [
+        {
+            "timestamp": datetime(2026, 10, 17, 12, 30, 0),
+            "level": "INFO",
+            "user": "vikram",
+            "ip": "203.0.113.25",
+            "action": "login",
+            "status": "failed",
+        }
+    ]
+
+    save_events(original_events, db_path)
+    retrieved_events = get_events(db_path)
+
+    assert retrieved_events == original_events
+
+
+def test_saving_same_events_twice_does_not_create_duplicates(tmp_path):
+    db_path = tmp_path / "security.db"
+
+    events = [
+        {
+            "timestamp": datetime(2026, 10, 17, 12, 30, 0),
+            "level": "INFO",
+            "user": "vikram",
+            "ip": "203.0.113.25",
+            "action": "login",
+            "status": "failed",
+        }
+    ]
+
+    save_events(events, db_path)
+    save_events(events, db_path)
+
+    retrieved_events = get_events(db_path)
+
+    assert len(retrieved_events) == 1

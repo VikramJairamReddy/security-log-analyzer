@@ -1,8 +1,7 @@
-
-from asyncio import events
 from pathlib import Path
 from datetime import datetime
 import json
+from .database import save_events, get_events
 
 def convert_log(line):
     """Convert a log line into a structured event."""
@@ -115,6 +114,9 @@ def main():
 
     try:
         events, invalid_lines = load_events(log_file)
+        db_file = project_root / "security.db"
+        save_events(events, db_file)
+        events = get_events(db_file)
     except FileNotFoundError:
         print(f"Error: Log file not found: {log_file}")
         return

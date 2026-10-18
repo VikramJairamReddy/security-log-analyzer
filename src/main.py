@@ -1,8 +1,9 @@
 from pathlib import Path
 from datetime import datetime
+import sqlite3
 import json
 import argparse
-from .database import save_events, get_events, get_security_summary
+from .database import save_events
 
 def convert_log(line):
     """Convert a log line into a structured event."""
@@ -171,6 +172,9 @@ def main():
     except FileNotFoundError:
         print(f"Error: Log file not found: {log_file}")
         return
+    except sqlite3.Error as error:
+        print(f"Error: Database operation failed: {error}")
+        return
 
     report = {
         "total_events": len(events),
@@ -183,7 +187,11 @@ def main():
         "generated_at": datetime.now().isoformat(timespec="seconds"),
     }
 
-    export_report(report, report_file)
+    try:
+        export_report(report, report_file)
+    except OSError as error:
+        print(f"Error: Could not write security report: {error}")
+        return
 
     print(f"\nReport saved to: {report_file}\n")
     print("=== Security Log Analyzer ===")

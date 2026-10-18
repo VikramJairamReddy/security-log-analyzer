@@ -6,6 +6,7 @@ from pathlib import Path
 import json
 import subprocess
 import sys
+import importlib
 
 def test_convert_valid_log_line():
     line = ("2026-10-16 09:01:00 WARN "
@@ -521,3 +522,68 @@ def test_report_uses_current_log_events(tmp_path, monkeypatch):
     assert report["successful_logins"] == 1
     assert report["failed_logins"] == 0
     assert report["suspicious_ips"] == {}
+
+def test_main_handles_report_write_error(tmp_path, monkeypatch, capsys):
+
+    main_module = importlib.import_module("src.main")
+
+    log_file = tmp_path / "auth.log"
+    log_file.write_text(
+        "2026-10-18 10:00:00 INFO user=alice "
+        "ip=198.51.100.10 action=login status=success\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        main_module.Path,
+        "resolve",
+        lambda self: tmp_path / "src" / "main.py",
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["main.py", "--log-file", str(log_file)],
+    )
+
+    def fail_export(report, file_path):
+        raise OSError("Permission denied")
+
+    monkeypatch.setattr(main_module, "export_report", fail_export)
+
+    main_module.main()
+
+    captured = capsys.readouterr()
+    assert "Error: Could not write security report: Permission denied" in captured.out
+
+
+def test_main_handles_database_error(tmp_path, monkeypatch, capsys):
+
+    main_module = importlib.import_module("src.main")
+
+    log_file = tmp_path / "auth.log"
+    log_file.write_text(
+        "2026-10-18 10:00:00 INFO user=alice "
+        "ip=198.51.100.10 action=login status=success\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        main_module.Path,
+        "resolve",
+        lambda self: tmp_path / "src" / "main.py",
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["main.py", "--log-file", str(log_file)],
+    )
+
+    def fail_save(events, db_path):
+        raise sqlite3.OperationalError("Database is unavailable")
+
+    monkeypatch.setattr(main_module, "save_events", fail_save)
+
+    main_module.main()
+
+    captured = capsys.readouterr()
+    assert "Error: Database operation failed: Database is unavailable" in captured.out

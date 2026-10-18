@@ -1,4 +1,5 @@
 
+from asyncio import events
 from pathlib import Path
 from datetime import datetime
 
@@ -112,6 +113,10 @@ def main():
         print(f"Error: Log file not found: {log_file}")
         return
     
+    successful_count = sum(
+        event["status"] == "success" for event in events
+    )
+
     failed_count = sum(
         event["status"] == "failed" for event in events
     )
@@ -120,6 +125,7 @@ def main():
 
     print("=== Security Log Analyzer ===")
     print(f"Total events: {len(events)}")
+    print(f"Successful logins: {successful_count}")
     print(f"Failed logins: {failed_count}")
     print(f"Invalid lines: {invalid_lines}")
 
@@ -129,7 +135,10 @@ def main():
         print("No suspicious activity detected.")
     else:
         for ip, count in alerts.items():
-            print(f"ALERT: {ip} has {count} failed login attempts.")
+            print(
+                f"ALERT: {ip} has {count} failed login attempts "
+                "within five minutes."
+            )
 
 
 if __name__ == "__main__":

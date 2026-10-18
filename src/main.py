@@ -106,8 +106,12 @@ def main():
     project_root = Path(__file__).resolve().parent.parent
     log_file = project_root / "sample_data" / "auth.log"
 
-    events, invalid_lines = load_events(log_file)
-
+    try:
+        events, invalid_lines = load_events(log_file)
+    except FileNotFoundError:
+        print(f"Error: Log file not found: {log_file}")
+        return
+    
     failed_count = sum(
         event["status"] == "failed" for event in events
     )

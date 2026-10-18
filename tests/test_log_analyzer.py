@@ -1,5 +1,6 @@
-from src.main import convert_log, detect_suspicious_ip
+from src.main import convert_log, load_events, detect_suspicious_ip
 from datetime import datetime
+from pathlib import Path
 
 def test_convert_valid_log_line():
     line = ("2026-10-16 09:01:00 WARN "
@@ -103,3 +104,28 @@ def test_failures_spread_over_time_do_not_trigger_alert():
     alerts = detect_suspicious_ip(events, threshold=3)
 
     assert alerts == {}
+
+def test_missing_log_file():
+    missing_file = Path("sample_data/does_not_exist.log")
+
+    try:
+        load_events(missing_file)
+        assert False, "Expected FileNotFoundError"
+    except FileNotFoundError:
+        pass
+
+def test_load_events_skips_invalid_lines(tmp_path):
+    log_file = tmp_path / "test.log"
+
+    log_file.write_text(
+        "invalid log entry\n"
+        "2026-10-16 09:01:00 WARN "
+        "user=admin ip=203.0.113.25 "
+        "action=login status=failed\n",
+        encoding="utf-8",
+    )
+
+    events, invalid_lines = load_events(log_file)
+
+    assert len(events) == 1
+    assert invalid_lines == 1

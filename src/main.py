@@ -153,25 +153,27 @@ def main():
 
     try:
         events, invalid_lines = load_events(log_file)
-        save_events(events, db_file)
-        db_events = get_events(db_file)
-        summary = get_security_summary(db_file)
 
+        save_events(events, db_file)
+
+        successful_logins = sum(
+            1 for event in events if event["status"] == "success"
+        )
+        failed_logins = sum(
+            1 for event in events if event["status"] == "failed"
+        )
+
+        suspicious_ips = detect_suspicious_ip(
+            events,
+            threshold=args.threshold,
+            window_minutes=args.window,
+        )
     except FileNotFoundError:
         print(f"Error: Log file not found: {log_file}")
         return
 
-    successful_logins = summary["successful_logins"]
-    failed_logins = summary["failed_logins"]
-
-    suspicious_ips = detect_suspicious_ip(
-        db_events,
-        threshold=args.threshold,
-        window_minutes=args.window,
-    )
-
     report = {
-        "total_events": summary["total_events"],
+        "total_events": len(events),
         "successful_logins": successful_logins,
         "failed_logins": failed_logins,
         "invalid_lines": invalid_lines,
@@ -185,7 +187,7 @@ def main():
 
     print(f"\nReport saved to: {report_file}\n")
     print("=== Security Log Analyzer ===")
-    print(f"Total events: {summary['total_events']}")
+    print(f"Total events: {len(events)}")
     print(f"Successful logins: {successful_logins}")
     print(f"Failed logins: {failed_logins}")
     print(f"Invalid lines: {invalid_lines}")

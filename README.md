@@ -76,6 +76,33 @@ python3 -m src.main --threshold 5 --window 10
 
 This command checks for five failed login attempts within ten minutes.
 
+## Run with Docker
+
+Make sure Docker Desktop is installed and running.
+
+Build the Docker image:
+
+```bash
+docker build -t security-log-analyzer .
+```
+
+Run the analyzer:
+
+```bash
+mkdir -p data
+docker run --rm -v "$(pwd)/data:/app/data" security-log-analyzer
+```
+
+The analyzer reads the sample log file and prints the results in the terminal.
+
+The `data` folder stores the SQLite database and JSON report on your computer. These files remain available after the container stops.
+
+To run the tests locally:
+
+```bash
+python3 -m pytest -v
+```
+
 ## Run the Tests
 
 Run this command:

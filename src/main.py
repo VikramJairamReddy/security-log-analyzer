@@ -149,8 +149,15 @@ def main():
     if not log_file.is_absolute():
         log_file = project_root / log_file
 
-    db_file = project_root / "security.db"
-    report_file = project_root / "security_report.json"
+    if Path("/.dockerenv").exists():
+        data_dir = Path("/app/data")
+    else:
+        data_dir = project_root
+
+    data_dir.mkdir(parents=True, exist_ok=True)
+    
+    db_file = data_dir / "security.db"
+    report_file = data_dir / "security_report.json"
 
     try:
         events, invalid_lines = load_events(log_file)
